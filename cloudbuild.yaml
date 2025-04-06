@@ -1,14 +1,22 @@
 steps:
-  # 1. Install dependencies
   - name: 'gcr.io/cloud-builders/npm'
     args: ['install']
 
-  # 2. Build Angular app in production mode
   - name: 'gcr.io/cloud-builders/npm'
     args: ['run', 'build', '--', '--configuration=production']
 
+  # Optional: Check dist folder
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "✅ Built Files:"
+        ls -lh dist/
+
 options:
   logging: CLOUD_LOGGING_ONLY
+
 
 
 
