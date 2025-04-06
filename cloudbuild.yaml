@@ -1,5 +1,4 @@
 steps:
-  # Step 1: Install dependencies, Angular CLI, and run ng build (all in one step)
   - name: 'gcr.io/cloud-builders/npm'
     entrypoint: 'bash'
     args:
@@ -16,8 +15,8 @@ steps:
 
         echo "📁 Build complete. Listing dist/ folder..."
         ls -lh dist/
-        echo "📁 Full build output files in dist/Angularproject:"
-        find dist/Angularproject/ -type f
+        echo "📁 Full build output files in dist/angularproject:"
+        find dist/angularproject/ -type f
 
 options:
   logging: CLOUD_LOGGING_ONLY
