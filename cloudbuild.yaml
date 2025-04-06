@@ -15,10 +15,13 @@ steps:
         ng build
 
         echo "📁 Build complete. Listing dist/ folder..."
-        find dist/
+        ls -lh dist/
+        echo "📁 Full build output files in dist/Angularproject:"
+        find dist/Angularproject/ -type f
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
 
 
 
