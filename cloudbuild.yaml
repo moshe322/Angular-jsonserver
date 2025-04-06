@@ -1,32 +1,25 @@
 steps:
-  # Step 1: Install dependencies
-  - name: 'gcr.io/cloud-builders/npm'
-    args: ['install']
-
-  # Step 2: Install Angular CLI globally
-  - name: 'gcr.io/cloud-builders/npm'
-    args: ['install', '-g', '@angular/cli@15.2.2']
-
-  # Step 3: Run ng build (dev build)
+  # Step 1: Install dependencies, Angular CLI, and run ng build (all in one step)
   - name: 'gcr.io/cloud-builders/npm'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "🏗️ Angular build starting..."
+        echo "📦 Installing dependencies..."
+        npm install
+
+        echo "⚙️ Installing Angular CLI..."
+        npm install -g @angular/cli@15.2.2
+
+        echo "🏗️ Running ng build (dev)..."
         ng build
 
-  # Step 4: Optional — Show dist/ folder contents
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "📦 dist/ folder:"
+        echo "📁 Build complete. Listing dist/ folder..."
         find dist/
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
 
 
 
