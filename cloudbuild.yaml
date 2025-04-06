@@ -1,21 +1,26 @@
 steps:
+  # Step 1: Install dependencies
   - name: 'gcr.io/cloud-builders/npm'
     args: ['install']
 
+  # Step 2: Run production build
   - name: 'gcr.io/cloud-builders/npm'
-    args: ['run', 'build', '--', '--configuration=production']
+    args: ['run', 'build', '--', '--configuration=dev']
 
-  # Optional: Check dist folder
+  # Step 3: Show dist/ output (optional debug)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "✅ Built Files:"
+        echo "✅ Production build files in dist/:"
         ls -lh dist/
+        echo "👉 Full output:"
+        find dist/
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
 
 
 
