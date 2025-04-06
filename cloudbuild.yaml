@@ -7,28 +7,27 @@ steps:
   - name: 'gcr.io/cloud-builders/npm'
     args: ['install', '-g', '@angular/cli@15.2.2']
 
-  # Step 3: Run ng build (default = dev build)
-  - name: 'gcr.io/cloud-builders/nodejs'
+  # Step 3: Run ng build (dev build)
+  - name: 'gcr.io/cloud-builders/npm'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        ng version
+        echo "🏗️ Angular build starting..."
         ng build
 
-  # Step 4: Debug dist folder
+  # Step 4: Optional — Show dist/ folder contents
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "✅ Files in dist/:"
-        ls -lh dist/
-        echo "📦 All files:"
+        echo "📦 dist/ folder:"
         find dist/
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
 
 
 
