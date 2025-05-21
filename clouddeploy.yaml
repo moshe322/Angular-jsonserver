@@ -1,0 +1,17 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: angular-app-pipeline
+description: Deploy Angular app
+serialPipeline:
+  stages:
+    - targetId: dev
+      profiles: []
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: dev
+description: Development GKE or Cloud Run
+gke:
+  cluster: projects/YOUR_PROJECT/locations/us-central1/clusters/YOUR_CLUSTER
