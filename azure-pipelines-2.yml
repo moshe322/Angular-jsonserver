@@ -20,14 +20,14 @@ steps:
     export VAULT_TOKEN="$(VAULT_TOKEN)"
 
     # Get secrets
-    user=$(vault kv get -field=USER_NAME secret/azure-creds)
-    ip=$(vault kv get -field=SERVER_IP secret/azure-creds)
+    user=$(vault kv get -field=USER secret/azure-creds)
+    ip=$(vault kv get -field=IP secret/azure-creds)
 
     echo "Fetched USER_NAME: $user"
     echo "Fetched SERVER_IP: $ip"
 
     # Optionally write them to a file for use in later steps
-    echo "USER_NAME=$user" >> azure_creds.env
-    echo "SERVER_IP=$ip" >> azure_creds.env
+    echo "USER=$user" >> azure_creds.env
+    echo "IP=$ip" >> azure_creds.env
 
   displayName: "Fetch Secrets from Vault"
