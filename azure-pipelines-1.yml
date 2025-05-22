@@ -15,7 +15,7 @@ steps:
 - script: |
     npm install -g @angular/cli
     npm install
-    ng build --prod
+    ng build
   displayName: 'npm install and build'
 
 # Step 3: Publish build artifacts (optional)
