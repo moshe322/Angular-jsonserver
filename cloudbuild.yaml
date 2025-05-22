@@ -1,25 +1,57 @@
 steps:
+  # Step 1: Build Angular
   - name: 'gcr.io/cloud-builders/npm'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "📦 Installing dependencies..."
+        echo "Installing dependencies..."
         npm install
-
-        echo "⚙️ Installing Angular CLI..."
         npm install -g @angular/cli@15.2.2
+        ng build --configuration=production
 
-        echo "🏗️ Running ng build (dev)..."
-        ng build
+  # Step 2: SSH and deploy to GCP VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "$_SSH_KEY" > /root/.ssh/id_rsa
+        chmod 600 /root/.ssh/id_rsa
+        ssh -o StrictHostKeyChecking=no deployvm@VM_EXTERNAL_IP 'mkdir -p /var/www/html/app'
+        scp -o StrictHostKeyChecking=no -r dist/angularproject/* deployvm@VM_EXTERNAL_IP:/var/www/html/app
 
-        echo "📁 Build complete. Listing dist/ folder..."
-        ls -lh dist/
-        echo "📁 Full build output files in dist/angularproject:"
-        find dist/angularproject/ -type f
+availableSecrets:
+  secretManager:
+    - versionName: projects/PROJECT_ID/secrets/deploy-vm-key/versions/latest
+      env: _SSH_KEY
 
-options:
-  logging: CLOUD_LOGGING_ONLY
+
+
+
+
+#steps:
+ # - name: 'gcr.io/cloud-builders/npm'
+   # entrypoint: 'bash'
+    #args:
+     # - '-c'
+      #- |
+       # echo "📦 Installing dependencies..."
+        #npm install
+
+        #echo "⚙️ Installing Angular CLI..."
+        #npm install -g @angular/cli@15.2.2
+
+        #echo "🏗️ Running ng build (dev)..."
+        #ng build
+
+        #echo "📁 Build complete. Listing dist/ folder..."
+        #ls -lh dist/
+        #echo "📁 Full build output files in dist/angularproject:"
+        #find dist/angularproject/ -type f
+
+#options:
+ # logging: CLOUD_LOGGING_ONLY
 
 
 
