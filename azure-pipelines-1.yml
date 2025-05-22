@@ -1,0 +1,63 @@
+trigger:
+- master
+
+#pool:
+ # vmImage: ubuntu-latest
+pool: 
+ name: Default
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Install Node.js'
+
+- script: |
+    npm install -g @angular/cli
+    npm install
+    ng build --prod
+  displayName: 'npm install and build'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'MSH'
+    publishLocation: 'Container'
+
+
+# Install Vault CLI
+- script: |
+    echo "Installing Vault CLI..."
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+    sudo apt-add-repository "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+    sudo apt-get update && sudo apt-get install -y vault jq
+  displayName: 'Install Vault CLI'
+
+# Authenticate with Vault and fetch GCP VM creds
+- script: |
+    echo "Authenticating to Vault with AppRole..."
+    export VAULT_ADDR=$VAULT_ADDR
+
+    vault write auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault_token.json
+    export VAULT_TOKEN=$(jq -r .auth.client_token vault_token.json)
+
+    echo "Fetching SERVER_IP and USER_NAME from Vault..."
+    vault kv get -format=json vm-data/my-server > vm_secret.json
+
+    export SERVER_IP=$(jq -r .data.data.SERVER_IP vm_secret.json)
+    export USER_NAME=$(jq -r .data.data.USER_NAME vm_secret.json)
+
+    echo "##vso[task.setvariable variable=vm_ip]$VM_IP"
+    echo "##vso[task.setvariable variable=vm_user]$VM_USER"
+
+    echo "Fetched from Vault: IP=$VM_IP, USER=$VM_USER"
+  env:
+    VAULT_ROLE_ID: $(VAULT_ROLE_ID)
+    VAULT_SECRET_ID: $(VAULT_SECRET_ID)
+  displayName: 'Fetch GCP VM credentials from Vault'
+
+# Deploy dist/ to GCP VM
+- script: |
+    echo "Deploying to $VM_USER@$VM_IP ..."
+    scp -o StrictHostKeyChecking=no -r dist/* $VM_USER@$VM_IP:/var/www/html/
+  displayName: 'Deploy dist/ folder to GCP VM'
