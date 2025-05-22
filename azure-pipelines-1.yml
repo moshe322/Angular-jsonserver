@@ -15,20 +15,13 @@ steps:
 - script: |
     npm install -g @angular/cli
     npm install
-    ng build
+    ng build --prod
   displayName: 'npm install and build'
 
-# Step 3: Publish build artifacts (optional)
-- task: PublishBuildArtifacts@1
-  inputs:
-    PathtoPublish: 'dist/'
-    ArtifactName: 'MSH'
-    publishLocation: 'Container'
-
-# Step 4: Authenticate with Vault and fetch GCP VM credentials
+# Step 3: Authenticate with Vault and fetch GCP VM credentials
 - script: |
     echo "Authenticating to Vault..."
-    export VAULT_ADDR=$(VAULT_ADDR)
+    echo "Using Vault address: $VAULT_ADDR"
 
     # Log in to Vault using AppRole and fetch the token
     vault write -format=json auth/approle/login \
@@ -55,7 +48,7 @@ steps:
     VAULT_ROLE_ID: $(VAULT_ROLE_ID)
     VAULT_SECRET_ID: $(VAULT_SECRET_ID)
 
-# Step 5: Deploy dist/ folder to GCP VM using scp
+# Step 4: Deploy dist/ folder to GCP VM using scp
 - script: |
     echo "Setting up SSH key..."
     echo "$(SSH_PRIVATE_KEY)" > ssh_key
