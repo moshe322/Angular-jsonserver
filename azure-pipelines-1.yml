@@ -36,9 +36,9 @@ steps:
 # Authenticate with Vault and fetch GCP VM creds
 - script: |
     echo "Authenticating to Vault with AppRole..."
-    export VAULT_ADDR=$VAULT_ADDR
+    export VAULT_ADDR="$VAULT_ADDR"
 
-    vault write auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault_token.json
+    vault write -format=json auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault_token.json
     export VAULT_TOKEN=$(jq -r .auth.client_token vault_token.json)
 
     echo "Fetching SERVER_IP and USER_NAME from Vault..."
@@ -47,17 +47,20 @@ steps:
     export SERVER_IP=$(jq -r .data.data.SERVER_IP vm_secret.json)
     export USER_NAME=$(jq -r .data.data.USER_NAME vm_secret.json)
 
-    echo "##vso[task.setvariable variable=vm_ip]$VM_IP"
-    echo "##vso[task.setvariable variable=vm_user]$VM_USER"
+    echo "##vso[task.setvariable variable=vm_ip]$SERVER_IP"
+    echo "##vso[task.setvariable variable=vm_user]$USER_NAME"
 
-    echo "Fetched from Vault: IP=$VM_IP, USER=$VM_USER"
+    echo "Fetched from Vault: IP=$SERVER_IP, USER=$USER_NAME"
+    echo $SERVER_IP
+    echo $USER_NAME
   env:
+    VAULT_ADDR: $(VAULT_ADDR)
     VAULT_ROLE_ID: $(VAULT_ROLE_ID)
     VAULT_SECRET_ID: $(VAULT_SECRET_ID)
   displayName: 'Fetch GCP VM credentials from Vault'
 
 # Deploy dist/ to GCP VM
 - script: |
-    echo "Deploying to $VM_USER@$VM_IP ..."
-    scp -o StrictHostKeyChecking=no -r dist/* $(vm_user)@$(vm_ip):/var/www/html/
+    echo "Deploying to $vm_user@$vm_ip ..."
+    scp -o StrictHostKeyChecking=no -r dist/* "$vm_user@$vm_ip:/var/www/html/"
   displayName: 'Deploy dist/ folder to GCP VM'
