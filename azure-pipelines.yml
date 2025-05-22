@@ -4,9 +4,9 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
 
 trigger:
-- master
+#- master
 
-pool: default
+#pool: default
 steps:
 - task: NodeTool@0
   inputs:
