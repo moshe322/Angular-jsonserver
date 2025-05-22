@@ -1,66 +1,72 @@
 trigger:
 - master
 
-#pool:
- # vmImage: ubuntu-latest
-pool: 
- name: Default
+pool:
+  name: Default
 
 steps:
+# Step 1: Install Node.js
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
   displayName: 'Install Node.js'
 
+# Step 2: Install npm dependencies and build Angular project
 - script: |
     npm install -g @angular/cli
     npm install
-    ng build
+    ng build --prod
   displayName: 'npm install and build'
 
+# Step 3: Publish build artifacts (optional)
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: 'dist/'
     ArtifactName: 'MSH'
     publishLocation: 'Container'
 
-
-# Install Vault CLI
+# Step 4: Authenticate with Vault and fetch GCP VM credentials
 - script: |
-    echo "Installing Vault CLI..."
-    curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-    sudo apt-add-repository "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-    sudo apt-get update && sudo apt-get install -y vault jq
-  displayName: 'Install Vault CLI'
+    echo "Authenticating to Vault..."
+    export VAULT_ADDR=$(VAULT_ADDR)
 
-# Authenticate with Vault and fetch GCP VM creds
-- script: |
-    echo "Authenticating to Vault with AppRole..."
-    export VAULT_ADDR="$VAULT_ADDR"
+    # Log in to Vault using AppRole and fetch the token
+    vault write -format=json auth/approle/login \
+        role_id=$(VAULT_ROLE_ID) \
+        secret_id=$(VAULT_SECRET_ID) > vault_response.json
 
-    vault write -format=json auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault_token.json
-    export VAULT_TOKEN=$(jq -r .auth.client_token vault_token.json)
+    export VAULT_TOKEN=$(jq -r .auth.client_token vault_response.json)
 
     echo "Fetching SERVER_IP and USER_NAME from Vault..."
-    vault kv get -format=json vm-data/my-server > vm_secret.json
+    vault kv get -format=json vm-data/my-server > vm_secrets.json
 
-    export SERVER_IP=$(jq -r .data.data.SERVER_IP vm_secret.json)
-    export USER_NAME=$(jq -r .data.data.USER_NAME vm_secret.json)
+    # Extract SERVER_IP and USER_NAME
+    export SERVER_IP=$(jq -r .data.data.SERVER_IP vm_secrets.json)
+    export USER_NAME=$(jq -r .data.data.USER_NAME vm_secrets.json)
 
+    # Pass the variables to subsequent pipeline steps
     echo "##vso[task.setvariable variable=vm_ip]$SERVER_IP"
     echo "##vso[task.setvariable variable=vm_user]$USER_NAME"
 
-    echo "Fetched from Vault: IP=$SERVER_IP, USER=$USER_NAME"
-    echo $SERVER_IP
-    echo $USER_NAME
+    echo "Fetched Vault Credentials: IP=$SERVER_IP, USER=$USER_NAME"
+  displayName: 'Fetch GCP VM Credentials from Vault'
   env:
     VAULT_ADDR: $(VAULT_ADDR)
     VAULT_ROLE_ID: $(VAULT_ROLE_ID)
     VAULT_SECRET_ID: $(VAULT_SECRET_ID)
-  displayName: 'Fetch GCP VM credentials from Vault'
 
-# Deploy dist/ to GCP VM
+# Step 5: Deploy dist/ folder to GCP VM using scp
 - script: |
+    echo "Setting up SSH key..."
+    echo "$(SSH_PRIVATE_KEY)" > ssh_key
+    chmod 600 ssh_key
+
     echo "Deploying to $vm_user@$vm_ip ..."
-    scp -o StrictHostKeyChecking=no -r dist/* "$vm_user@$vm_ip:/var/www/html/"
+    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* "$vm_user@$vm_ip:/var/www/html/"
+
+    echo "Deployment complete."
   displayName: 'Deploy dist/ folder to GCP VM'
+  env:
+    vm_ip: $(vm_ip)
+    vm_user: $(vm_user)
+    SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
