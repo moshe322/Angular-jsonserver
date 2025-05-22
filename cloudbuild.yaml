@@ -23,8 +23,12 @@ steps:
 
 availableSecrets:
   secretManager:
-    - versionName: projects/PROJECT_ID/secrets/deploy-vm-key/versions/latest
+    - versionName: projects/YOUR_PROJECT_ID/secrets/deploy-vm-key/versions/latest
       env: _SSH_KEY
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 
 
 
