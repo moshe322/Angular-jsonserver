@@ -54,12 +54,25 @@ steps:
     echo "$(SSH_PRIVATE_KEY)" > ssh_key
     chmod 600 ssh_key
 
-    echo "Deploying to $vm_user@$vm_ip ..."
-    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* "$vm_user@$vm_ip:/var/www/html/"
+    echo "Testing SSH connection..."
+    ssh -o StrictHostKeyChecking=no -i ssh_key "root@$(vm_ip)" "echo 'SSH connection successful!'"
+  displayName: 'Test SSH Connection'
+  env:
+    vm_ip: $(vm_ip)
+    SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
+
+
+- script: |
+    echo "Setting up SSH key..."
+    echo "$(SSH_PRIVATE_KEY)" > ssh_key
+    chmod 600 ssh_key
+
+    echo "Deploying to root@$(vm_ip)..."
+    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* "root@$(vm_ip):/var/www/html/"
 
     echo "Deployment complete."
   displayName: 'Deploy dist/ folder to GCP VM'
   env:
     vm_ip: $(vm_ip)
-    vm_user: $(vm_user)
     SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
+
