@@ -4,23 +4,30 @@ pool:
   name: Default
 
 variables:
-- group: New variable group 22-May
+- group: New variable group 22-May  # This must contain VAULT_ADDR and VAULT_TOKEN
 
 steps:
 - script: |
     echo "Fetching secrets from Vault..."
-    
+
     # Install Vault CLI
     curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
     echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-    sudo apt update && sudo apt install -y vault
+    sudo apt update && sudo apt install -y vault jq
 
     # Export Vault env vars
-    export VAULT_ADDR=$(VAULT_ADDR)
-    export VAULT_TOKEN=$(VAULT_TOKEN)
+    export VAULT_ADDR="$(VAULT_ADDR)"
+    export VAULT_TOKEN="$(VAULT_TOKEN)"
 
-    # Get secret
-    vault kv get -field=USER_NAME secret/azure-creds
-    vault kv get -field=SERVER_IP secret/azure-creds
+    # Get secrets
+    user=$(vault kv get -field=USER_NAME secret/azure-creds)
+    ip=$(vault kv get -field=SERVER_IP secret/azure-creds)
+
+    echo "Fetched USER_NAME: $user"
+    echo "Fetched SERVER_IP: $ip"
+
+    # Optionally write them to a file for use in later steps
+    echo "USER_NAME=$user" >> azure_creds.env
+    echo "SERVER_IP=$ip" >> azure_creds.env
 
   displayName: "Fetch Secrets from Vault"
