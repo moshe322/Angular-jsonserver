@@ -4,7 +4,11 @@ trigger:
 pool:
   name: Default
 
+variables:
+- group: New variable group 22-May  # Must contain: VAULT_ADDR, VAULT_TOKEN, SSH_PRIVATE_KEY, vm_ip
+
 steps:
+
 # Step 1: Install Node.js
 - task: NodeTool@0
   inputs:
@@ -15,64 +19,65 @@ steps:
 - script: |
     npm install -g @angular/cli
     npm install
-    ng build
-  displayName: 'npm install and build'
+    ng build --configuration production
+  displayName: 'Install and Build Angular App'
 
-# Step 3: Authenticate with Vault and fetch GCP VM credentials
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'dist'
+    ArtifactName: 'ASM'
+    publishLocation: 'Container'
+
+# Step 3: Fetch Secrets from Vault
 - script: |
-    echo "Authenticating to Vault..."
-    echo "Using Vault address: $VAULT_ADDR"
+    echo "Fetching secrets from Vault..."
 
-    # Log in to Vault using AppRole and fetch the token
-    vault write -format=json auth/approle/login \
-        role_id=$(VAULT_ROLE_ID) \
-        secret_id=$(VAULT_SECRET_ID) > vault_response.json
+    # Install Vault CLI
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+    sudo apt update && sudo apt install -y vault jq
 
-    export VAULT_TOKEN=$(jq -r .auth.client_token vault_response.json)
+    # Set Vault environment variables
+    export VAULT_ADDR="${VAULT_ADDR}"
+    export VAULT_TOKEN="${VAULT_TOKEN}"
 
-    echo "Fetching SERVER_IP and USER_NAME from Vault..."
-    vault kv get -format=json vm-data/my-server > vm_secrets.json
+    # Fetch secrets
+    USER_NAME=$(vault kv get -field=USER_NAME secret/azure-creds)
+    SERVER_IP=$(vault kv get -field=SERVER_IP secret/azure-creds)
 
-    # Extract SERVER_IP and USER_NAME
-    export SERVER_IP=$(jq -r .data.data.SERVER_IP vm_secrets.json)
-    export USER_NAME=$(jq -r .data.data.USER_NAME vm_secrets.json)
+    echo "##vso[task.setvariable variable=VAULT_USER_NAME]$USER_NAME"
+    echo "##vso[task.setvariable variable=VAULT_SERVER_IP]$SERVER_IP"
+    export vm_ip=$(SERVER_IP)
+    echo vm_ip
 
-    # Pass the variables to subsequent pipeline steps
-    echo "##vso[task.setvariable variable=vm_ip]$SERVER_IP"
-    echo "##vso[task.setvariable variable=vm_user]$USER_NAME"
-
-    echo "Fetched Vault Credentials: IP=$SERVER_IP, USER=$USER_NAME"
-  displayName: 'Fetch GCP VM Credentials from Vault'
+  displayName: "Fetch Secrets from Vault"
   env:
     VAULT_ADDR: $(VAULT_ADDR)
-    VAULT_ROLE_ID: $(VAULT_ROLE_ID)
-    VAULT_SECRET_ID: $(VAULT_SECRET_ID)
+    VAULT_TOKEN: $(VAULT_TOKEN)
 
-# Step 4: Deploy dist/ folder to GCP VM using scp
+# Step 4: Test SSH Connection to GCP VM
 - script: |
     echo "Setting up SSH key..."
-    echo "$(SSH_PRIVATE_KEY)" > ssh_key
+    echo "$SSH_PRIVATE_KEY" > ssh_key
     chmod 600 ssh_key
 
     echo "Testing SSH connection..."
     ssh -o StrictHostKeyChecking=no -i ssh_key "root@$(vm_ip)" "echo 'SSH connection successful!'"
   displayName: 'Test SSH Connection'
   env:
-    vm_ip: $(vm_ip)
     SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
+    vm_ip: $(vm_ip)
 
-
+# Step 5: Deploy Angular dist/ folder to GCP VM
 - script: |
     echo "Setting up SSH key..."
-    echo "$(SSH_PRIVATE_KEY)" > ssh_key
+    echo "$SSH_PRIVATE_KEY" > ssh_key
     chmod 600 ssh_key
 
-    echo "Deploying to root@$(vm_ip)..."
+    echo "Deploying Angular app to root@$(vm_ip)..."
     scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* "root@$(vm_ip):/var/www/html/"
-
     echo "Deployment complete."
   displayName: 'Deploy dist/ folder to GCP VM'
   env:
-    vm_ip: $(vm_ip)
     SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
-
+    vm_ip: $(vm_ip)
