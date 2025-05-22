@@ -20,8 +20,10 @@ steps:
     export VAULT_TOKEN="$(VAULT_TOKEN)"
 
     # Get secrets
-    user=$(vault kv get -field=USER_NAME secret/azure-creds)
-    ip=$(vault kv get -field=SERVER_IP secret/azure-creds)
+    export user=$(vault kv get -field=USER_NAME secret/azure-creds)
+    export ip=$(vault kv get -field=SERVER_IP secret/azure-creds)
+    echo user
+    echo ip
 
     echo "Fetched USER_NAME: $user"
     echo "Fetched SERVER_IP: $ip"
