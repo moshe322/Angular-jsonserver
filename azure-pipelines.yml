@@ -6,7 +6,7 @@ pool: Default
 variables:
 - group: New variable group 22-May
 - name: System.Debug
-  value: true   # Enable debug logs, optional
+  value: true   # Enable debug logs (optional)
 
 steps:
 
@@ -24,6 +24,8 @@ steps:
     ls -la
     cd dist
     ls -la
+    echo "Build complete. Listing files in dist folder:"
+    ls -la dist
   displayName: 'Install and Build Angular App'
 
 # Step 3: Publish Build Artifacts
@@ -34,7 +36,7 @@ steps:
     publishLocation: 'Container'
   displayName: 'Publish Build Artifacts'
 
-# Optional Step 4: Fetch secrets from Vault (if you use Vault)
+# Step 4: Fetch secrets from Vault
 - script: |
     echo "Fetching secrets from Vault..."
     
@@ -50,12 +52,14 @@ steps:
     # Fetch secrets
     USER_NAME=$(vault kv get -field=USER_NAME secret/azure-creds)
     SERVER_IP=$(vault kv get -field=SERVER_IP secret/azure-creds)
+    ls -la
 
     if [ -z "$USER_NAME" ] || [ -z "$SERVER_IP" ]; then
       echo "Failed to fetch secrets from Vault."
       exit 1
     fi
 
+    # Set fetched values as Azure DevOps pipeline variables
     echo "##vso[task.setvariable variable=VAULT_USER_NAME]$USER_NAME"
     echo "##vso[task.setvariable variable=VAULT_SERVER_IP]$SERVER_IP"
   displayName: "Fetch Secrets from Vault"
@@ -67,7 +71,7 @@ steps:
 - task: DownloadSecureFile@1
   name: DownloadSSHKey
   inputs:
-    secureFile: base
+    secureFile: 'azure_devops_key'  # Name of the secure file in Azure DevOps Library
   displayName: 'Download SSH Private Key'
 
 # Step 6: Setup SSH Key for use
@@ -80,12 +84,12 @@ steps:
 # Step 7: Test SSH Connection
 - script: |
     echo "Testing SSH connection..."
-    ssh -o StrictHostKeyChecking=no -i ssh_key root@34.173.125.118 "echo 'SSH connection successful!'"
+    ssh -o StrictHostKeyChecking=no -i ssh_key $(VAULT_USER_NAME)@$(VAULT_SERVER_IP) "echo 'SSH connection successful!'"
   displayName: 'Test SSH Connection'
 
 # Step 8: Deploy Angular dist/ folder to GCP VM
 - script: |
     echo "Deploying Angular app..."
-    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* root@34.173.125.118:/var/www/html/
+    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* $(VAULT_USER_NAME)@$(VAULT_SERVER_IP):/var/www/html/
     echo "Deployment complete."
   displayName: 'Deploy dist/ folder to GCP VM'
