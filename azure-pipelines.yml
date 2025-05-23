@@ -22,8 +22,6 @@ steps:
     npm install
     ng build
     ls -la
-    cd dist
-    ls -la
     echo "Build complete. Listing files in dist folder:"
     ls -la dist
   displayName: 'Install and Build Angular App'
