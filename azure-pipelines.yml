@@ -79,6 +79,7 @@ steps:
 # Step 7: Deploy Angular dist/ folder to GCP VM
 - script: |
     echo "Deploying Angular app to $(VAULT_USER_NAME)@$(VAULT_SERVER_IP)..."
+    ls -la
     scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* "$(VAULT_USER_NAME)@$(VAULT_SERVER_IP):/var/www/html/"
     echo "Deployment complete."
   displayName: 'Deploy dist/ folder to GCP VM'
