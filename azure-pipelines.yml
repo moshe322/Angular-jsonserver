@@ -5,6 +5,8 @@ pool: Default
 
 variables:
 - group: New variable group 22-May
+- name: System.Debug
+  value: true   # Enable debug logs, optional
 
 steps:
 
@@ -32,7 +34,7 @@ steps:
     publishLocation: 'Container'
   displayName: 'Publish Build Artifacts'
 
-# Step 4: Fetch Secrets from Vault
+# Optional Step 4: Fetch secrets from Vault (if you use Vault)
 - script: |
     echo "Fetching secrets from Vault..."
     
@@ -61,27 +63,29 @@ steps:
     VAULT_ADDR: $(VAULT_ADDR)
     VAULT_TOKEN: $(VAULT_TOKEN)
 
-# Step 5: Setup SSH Key
-# Step 5: Setup SSH Key
+# Step 5: Download SSH Private Key from Secure Files
+- task: DownloadSecureFile@1
+  name: DownloadSSHKey
+  inputs:
+    secureFile: base
+  displayName: 'Download SSH Private Key'
+
+# Step 6: Setup SSH Key for use
 - script: |
     echo "Setting up SSH key..."
-    echo "$SSH_PRIVATE_KEY" | base64 -d > ssh_key
-    dos2unix ssh_key  # Ensure proper line endings
+    mv $(DownloadSSHKey.secureFilePath) ssh_key
     chmod 600 ssh_key
   displayName: 'Setup SSH Key'
-  env:
-    SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
 
-# Step 6: Test SSH Connection
+# Step 7: Test SSH Connection
 - script: |
-    echo "Testing SSH connection to $(VAULT_SERVER_IP)..."
-    ssh -o StrictHostKeyChecking=no -i ssh_key "$(VAULT_USER_NAME)@$(VAULT_SERVER_IP)" "echo 'SSH connection successful!'"
+    echo "Testing SSH connection..."
+    ssh -o StrictHostKeyChecking=no -i ssh_key root@34.173.125.118 "echo 'SSH connection successful!'"
   displayName: 'Test SSH Connection'
 
-
-# Step 7: Deploy Angular dist/ folder to GCP VM
+# Step 8: Deploy Angular dist/ folder to GCP VM
 - script: |
-    echo "Deploying Angular app to $(VAULT_USER_NAME)@$(VAULT_SERVER_IP)..."
-    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* "$(VAULT_USER_NAME)@$(VAULT_SERVER_IP):/var/www/html/"
+    echo "Deploying Angular app..."
+    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* root@34.173.125.118:/var/www/html/
     echo "Deployment complete."
   displayName: 'Deploy dist/ folder to GCP VM'
