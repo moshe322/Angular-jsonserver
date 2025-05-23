@@ -84,6 +84,7 @@ steps:
 - script: |
     echo "Testing SSH connection..."
     ssh -vvv -o StrictHostKeyChecking=no -i ssh_key $(VAULT_USER_NAME)@$(VAULT_SERVER_IP) "echo 'SSH connection successful!'"
+    ls -la
   displayName: 'Test SSH Connection'
 
 # Step 8: Deploy Angular dist/ folder to GCP VM
