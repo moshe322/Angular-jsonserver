@@ -1,25 +1,85 @@
-# Node.js
-# Build a general Node.js project with npm.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
 trigger:
-#- master
+- master
 
-#pool: default
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- group: New variable group 22-May
+
 steps:
+
+# Step 1: Install Node.js
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
   displayName: 'Install Node.js'
 
+# Step 2: Install and Build Angular App
 - script: |
+    npm install -g @angular/cli
     npm install
-    npm run build
-  displayName: 'npm install and build'
+    ng build
+    ls -la
+    cd dist
+    ls -la
+  displayName: 'Install and Build Angular App'
 
+# Step 3: Publish Build Artifacts
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'MSH'
+    PathtoPublish: 'dist'
+    ArtifactName: 'ASM'
     publishLocation: 'Container'
+  displayName: 'Publish Build Artifacts'
+
+# Step 4: Fetch Secrets from Vault
+- script: |
+    echo "Fetching secrets from Vault..."
+    
+    # Install Vault CLI
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+    sudo apt update && sudo apt install -y vault jq
+
+    # Set Vault environment variables
+    export VAULT_ADDR="${VAULT_ADDR}"
+    export VAULT_TOKEN="${VAULT_TOKEN}"
+
+    # Fetch secrets
+    USER_NAME=$(vault kv get -field=USER_NAME secret/azure-creds)
+    SERVER_IP=$(vault kv get -field=SERVER_IP secret/azure-creds)
+
+    if [ -z "$USER_NAME" ] || [ -z "$SERVER_IP" ]; then
+      echo "Failed to fetch secrets from Vault."
+      exit 1
+    fi
+
+    echo "##vso[task.setvariable variable=VAULT_USER_NAME]$USER_NAME"
+    echo "##vso[task.setvariable variable=VAULT_SERVER_IP]$SERVER_IP"
+  displayName: "Fetch Secrets from Vault"
+  env:
+    VAULT_ADDR: $(VAULT_ADDR)
+    VAULT_TOKEN: $(VAULT_TOKEN)
+
+# Step 5: Setup SSH Key
+- script: |
+    echo "Setting up SSH key..."
+    echo "$SSH_PRIVATE_KEY" > ssh_key
+    chmod 600 ssh_key
+  displayName: 'Setup SSH Key'
+  env:
+    SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
+
+# Step 6: Test SSH Connection
+- script: |
+    echo "Testing SSH connection to $(VAULT_SERVER_IP)..."
+    ssh -o StrictHostKeyChecking=no -i ssh_key "$(VAULT_USER_NAME)@$(VAULT_SERVER_IP)" "echo 'SSH connection successful!'"
+  displayName: 'Test SSH Connection'
+
+# Step 7: Deploy Angular dist/ folder to GCP VM
+- script: |
+    echo "Deploying Angular app to $(VAULT_USER_NAME)@$(VAULT_SERVER_IP)..."
+    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* "$(VAULT_USER_NAME)@$(VAULT_SERVER_IP):/var/www/html/"
+    echo "Deployment complete."
+  displayName: 'Deploy dist/ folder to GCP VM'
