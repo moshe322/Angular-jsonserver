@@ -64,17 +64,20 @@ steps:
 # Step 5: Setup SSH Key
 - script: |
     echo "Setting up SSH key..."
-    echo "$SSH_PRIVATE_KEY" > ssh_key
+    echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ssh_key
     chmod 600 ssh_key
   displayName: 'Setup SSH Key'
   env:
     SSH_PRIVATE_KEY: $(SSH_PRIVATE_KEY)
 
+
+# Step 6: Test SSH Connection
 # Step 6: Test SSH Connection
 - script: |
     echo "Testing SSH connection to $(VAULT_SERVER_IP)..."
     ssh -o StrictHostKeyChecking=no -i ssh_key "$(VAULT_USER_NAME)@$(VAULT_SERVER_IP)" "echo 'SSH connection successful!'"
   displayName: 'Test SSH Connection'
+
 
 # Step 7: Deploy Angular dist/ folder to GCP VM
 - script: |
