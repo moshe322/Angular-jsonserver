@@ -72,17 +72,18 @@ steps:
     secureFile: 'azure_devops_key'  # Name of the secure file in Azure DevOps Library
   displayName: 'Download SSH Private Key'
 
-# Step 6: Setup SSH Key for use
+# Step 6: Reformat SSH Key to PEM (if required)
 - script: |
-    echo "Setting up SSH key..."
+    echo "Reformatting SSH key to PEM format..."
     mv $(DownloadSSHKey.secureFilePath) ssh_key
     chmod 600 ssh_key
-  displayName: 'Setup SSH Key'
+    ssh-keygen -p -f ssh_key -m PEM -N "" > /dev/null 2>&1
+  displayName: 'Reformat SSH Key'
 
 # Step 7: Test SSH Connection
 - script: |
     echo "Testing SSH connection..."
-    ssh -o StrictHostKeyChecking=no -i ssh_key $(VAULT_USER_NAME)@$(VAULT_SERVER_IP) "echo 'SSH connection successful!'"
+    ssh -vvv -o StrictHostKeyChecking=no -i ssh_key $(VAULT_USER_NAME)@$(VAULT_SERVER_IP) "echo 'SSH connection successful!'"
   displayName: 'Test SSH Connection'
 
 # Step 8: Deploy Angular dist/ folder to GCP VM
