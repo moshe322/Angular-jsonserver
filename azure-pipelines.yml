@@ -48,8 +48,12 @@ steps:
     export VAULT_TOKEN="${VAULT_TOKEN}"
 
     # Fetch secrets
-    vault kv get -field=OWNER -version=2 secret/azure-creds
+    #vault kv get -field=OWNER -version=2 secret/azure-creds
     ls -la
+    
+    #USER_NAME=$(vault kv get -field=USER_NAME secret/azure-creds)
+    #SERVER_IP=$(vault kv get -field=SERVER_IP secret/azure-creds)
+
     USER_NAME=$(vault kv get -field=USER_NAME -version=1 secret/azure-creds)
     SERVER_IP=$(vault kv get -field=SERVER_IP -version=1 secret/azure-creds)
     ls -la
