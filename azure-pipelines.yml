@@ -1,5 +1,5 @@
 trigger:
-- master
+- main
 
 pool: Default
 
@@ -20,8 +20,7 @@ steps:
 - script: |
     npm install -g @angular/cli
     npm install
-    ng build
-    ls -la
+    ng build 
     echo "Build complete. Listing files in dist folder:"
     ls -la dist
   displayName: 'Install and Build Angular App'
@@ -34,68 +33,125 @@ steps:
     publishLocation: 'Container'
   displayName: 'Publish Build Artifacts'
 
-# Step 4: Fetch secrets from Vault
-- script: |
-    echo "Fetching secrets from Vault..."
-    
-    # Install Vault CLI
-    curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-    sudo apt update && sudo apt install -y vault jq
-
-    # Set Vault environment variables
-    export VAULT_ADDR="${VAULT_ADDR}"
-    export VAULT_TOKEN="${VAULT_TOKEN}"
-
-    # Fetch secrets
-    #vault kv get -field=OWNER -version=2 secret/azure-creds
-    ls -la
-    
-    #USER_NAME=$(vault kv get -field=USER_NAME secret/azure-creds)
-    #SERVER_IP=$(vault kv get -field=SERVER_IP secret/azure-creds)
-
-    USER_NAME=$(vault kv get -field=USER_NAME -version=1 secret/azure-creds)
-    SERVER_IP=$(vault kv get -field=SERVER_IP -version=1 secret/azure-creds)
-    ls -la
-
-    if [ -z "$USER_NAME" ] || [ -z "$SERVER_IP" ]; then
-      echo "Failed to fetch secrets from Vault."
-      exit 1
-    fi
-
-    # Set fetched values as Azure DevOps pipeline variables
-    echo "##vso[task.setvariable variable=VAULT_USER_NAME]$USER_NAME"
-    echo "##vso[task.setvariable variable=VAULT_SERVER_IP]$SERVER_IP"
-  displayName: "Fetch Secrets from Vault"
-  env:
-    VAULT_ADDR: $(VAULT_ADDR)
-    VAULT_TOKEN: $(VAULT_TOKEN)
-
-# Step 5: Download SSH Private Key from Secure Files
-- task: DownloadSecureFile@1
-  name: DownloadSSHKey
+# Step 4: Prepare SonarQube analysis
+- task: SonarQubePrepare@5
   inputs:
-    secureFile: 'azure_devops_key'  # Name of the secure file in Azure DevOps Library
-  displayName: 'Download SSH Private Key'
+    SonarQube: 'azure-sonar'  # Replace with your service connection name
+    scannerMode: 'CLI'
+    configMode: 'manual'
+    cliProjectKey: 'FIRST_Angular_0fb77799-5e0c-47b8-bf68-0c6123b7a88e'
+    cliProjectName: 'Angular'
+    cliProjectVersion: '1.0'
+    cliSources: 'src'
+  displayName: 'Prepare SonarQube analysis'
 
-# Step 6: Reformat SSH Key to PEM (if required)
-- script: |
-    echo "Reformatting SSH key to PEM format..."
-    mv $(DownloadSSHKey.secureFilePath) ssh_key
-    chmod 600 ssh_key
-    ssh-keygen -p -f ssh_key -m PEM -N "" > /dev/null 2>&1
-  displayName: 'Reformat SSH Key'
+# Step 5: Run SonarQube analysis
+- task: SonarQubeAnalyze@5
+  displayName: 'Run SonarQube analysis'
 
-# Step 7: Test SSH Connection
-- script: |
-    echo "Testing SSH connection..."
-    ssh -vvv -o StrictHostKeyChecking=no -i ssh_key $(VAULT_USER_NAME)@$(VAULT_SERVER_IP) "echo 'SSH connection successful!'"
-    ls -la
-  displayName: 'Test SSH Connection'
+# Step 6: Publish SonarQube quality gate results
+- task: SonarQubePublish@5
+  displayName: 'Publish SonarQube quality gate results'
 
-# Step 8: Deploy Angular dist/ folder to GCP VM
-- script: |
-    echo "Deploying Angular app..."
-    scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* $(VAULT_USER_NAME)@$(VAULT_SERVER_IP):/var/www/html/
-    echo "Deployment complete."
-  displayName: 'Deploy dist/ folder to GCP VM'
+
+# trigger:
+# - master
+
+# pool: Default
+
+# variables:
+# - group: New variable group 22-May
+# - name: System.Debug
+#   value: true   # Enable debug logs (optional)
+
+# steps:
+
+# # Step 1: Install Node.js
+# - task: NodeTool@0
+#   inputs:
+#     versionSpec: '20.x'
+#   displayName: 'Install Node.js'
+
+# # Step 2: Install and Build Angular App
+# - script: |
+#     npm install -g @angular/cli
+#     npm install
+#     ng build
+#     ls -la
+#     echo "Build complete. Listing files in dist folder:"
+#     ls -la dist
+#   displayName: 'Install and Build Angular App'
+
+# # Step 3: Publish Build Artifacts
+# - task: PublishBuildArtifacts@1
+#   inputs:
+#     PathtoPublish: 'dist'
+#     ArtifactName: 'ASM'
+#     publishLocation: 'Container'
+#   displayName: 'Publish Build Artifacts'
+
+# # Step 4: Fetch secrets from Vault
+# - script: |
+#     echo "Fetching secrets from Vault..."
+    
+#     # Install Vault CLI
+#     curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+#     echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+#     sudo apt update && sudo apt install -y vault jq
+
+#     # Set Vault environment variables
+#     export VAULT_ADDR="${VAULT_ADDR}"
+#     export VAULT_TOKEN="${VAULT_TOKEN}"
+
+#     # Fetch secrets
+#     #vault kv get -field=OWNER -version=2 secret/azure-creds
+#     ls -la
+    
+#     #USER_NAME=$(vault kv get -field=USER_NAME secret/azure-creds)
+#     #SERVER_IP=$(vault kv get -field=SERVER_IP secret/azure-creds)
+
+#     USER_NAME=$(vault kv get -field=USER_NAME -version=1 secret/azure-creds)
+#     SERVER_IP=$(vault kv get -field=SERVER_IP -version=1 secret/azure-creds)
+#     ls -la
+
+#     if [ -z "$USER_NAME" ] || [ -z "$SERVER_IP" ]; then
+#       echo "Failed to fetch secrets from Vault."
+#       exit 1
+#     fi
+
+#     # Set fetched values as Azure DevOps pipeline variables
+#     echo "##vso[task.setvariable variable=VAULT_USER_NAME]$USER_NAME"
+#     echo "##vso[task.setvariable variable=VAULT_SERVER_IP]$SERVER_IP"
+#   displayName: "Fetch Secrets from Vault"
+#   env:
+#     VAULT_ADDR: $(VAULT_ADDR)
+#     VAULT_TOKEN: $(VAULT_TOKEN)
+
+# # Step 5: Download SSH Private Key from Secure Files
+# - task: DownloadSecureFile@1
+#   name: DownloadSSHKey
+#   inputs:
+#     secureFile: 'azure_devops_key'  # Name of the secure file in Azure DevOps Library
+#   displayName: 'Download SSH Private Key'
+
+# # Step 6: Reformat SSH Key to PEM (if required)
+# - script: |
+#     echo "Reformatting SSH key to PEM format..."
+#     mv $(DownloadSSHKey.secureFilePath) ssh_key
+#     chmod 600 ssh_key
+#     ssh-keygen -p -f ssh_key -m PEM -N "" > /dev/null 2>&1
+#   displayName: 'Reformat SSH Key'
+
+# # Step 7: Test SSH Connection
+# - script: |
+#     echo "Testing SSH connection..."
+#     ssh -vvv -o StrictHostKeyChecking=no -i ssh_key $(VAULT_USER_NAME)@$(VAULT_SERVER_IP) "echo 'SSH connection successful!'"
+#     ls -la
+#   displayName: 'Test SSH Connection'
+
+# # Step 8: Deploy Angular dist/ folder to GCP VM
+# - script: |
+#     echo "Deploying Angular app..."
+#     scp -o StrictHostKeyChecking=no -i ssh_key -r dist/* $(VAULT_USER_NAME)@$(VAULT_SERVER_IP):/var/www/html/
+#     echo "Deployment complete."
+#   displayName: 'Deploy dist/ folder to GCP VM'
