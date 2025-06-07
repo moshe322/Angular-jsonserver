@@ -53,6 +53,26 @@ steps:
 - task: SonarQubePublish@5
   displayName: 'Publish SonarQube quality gate results'
 
+- script: |
+    echo "Downloading OWASP ZAP..."
+    curl -L https://github.com/zaproxy/zaproxy/releases/download/v2.13.0/ZAP_2_13_0_Linux.tar.gz -o zap.tar.gz
+    tar -xzf zap.tar.gz -C /usr/local/bin
+    echo "Installation complete."
+  displayName: 'Install OWASP ZAP'
+
+# Step 8: Run DAST Scan with OWASP ZAP
+- script: |
+    echo "Starting OWASP ZAP Baseline Scan..."
+    /usr/local/bin/ZAP_2_13_0/zap-baseline.py -t http://your-application-url -r zap-report.html
+    echo "DAST Scan Complete. Report generated."
+  displayName: 'Run OWASP ZAP Baseline Scan'
+
+# Step 9: Publish OWASP ZAP Report
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: 'zap-report.html'
+    artifact: 'DAST_Report'
+  displayName: 'Publish OWASP ZAP Report'
 
 # trigger:
 # - master
