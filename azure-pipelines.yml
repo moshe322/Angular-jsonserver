@@ -6,7 +6,7 @@ pool: Default
 variables:
 - group: New variable group 22-May
 - name: System.Debug
-  value: true   # Enable debug logs (optional)
+  value: true
 
 steps:
 
@@ -14,16 +14,17 @@ steps:
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
+    checkLatest: true
   displayName: 'Install Node.js'
 
-# Step 2: Install and Build Angular App
+# Step 2: Install and Build Angular App with Coverage
 - script: |
     npm install -g @angular/cli
     npm install
-    ng build 
+    ng build
     echo "Build complete. Listing files in dist folder:"
     ls -la dist
-  displayName: 'Install and Build Angular App'
+  displayName: 'Install, Test, and Build Angular App'
 
 # Step 3: Publish Build Artifacts
 - task: PublishBuildArtifacts@1
@@ -33,29 +34,48 @@ steps:
     publishLocation: 'Container'
   displayName: 'Publish Build Artifacts'
 
-# Step 4: Prepare SonarQube analysis
+# Step 4: Switch to Second Quality Gate (sonar-qualities-2)
+- script: |
+    echo "Switching to the second Quality Gate: sonar-qualities-2..."
+    curl -u "${SONAR_TOKEN}:" -X POST \
+      "${SONARQUBE_URL}/api/qualitygates/select" \
+      -d "projectKey=FIRST_Angular_0fb77799-5e0c-47b8-bf68-0c6123b7a88e" \
+      -d "gateName=sonar-qualities-2"
+    echo "Quality Gate successfully switched to sonar-qualities-2."
+  displayName: 'Switch to Second Quality Gate'
+  env:
+    SONAR_TOKEN: $(SonarToken)
+    SONARQUBE_URL: 'http://localhost:8087'
+
+# Step 5: Prepare SonarQube analysis
 - task: SonarQubePrepare@5
   inputs:
-    SonarQube: 'azure-sonar'  # Replace with your service connection name
+    SonarQube: 'azure-sonar'
     scannerMode: 'CLI'
     configMode: 'manual'
     cliProjectKey: 'FIRST_Angular_0fb77799-5e0c-47b8-bf68-0c6123b7a88e'
     cliProjectName: 'Angular-Front'
     cliProjectVersion: '1.0'
     cliSources: 'src'
+    extraProperties: |
+      sonar.javascript.lcov.reportPaths=coverage/lcov.info
   displayName: 'Prepare SonarQube analysis'
 
-# Step 5: Run SonarQube analysis
+# Step 6: Run SonarQube analysis
 - task: SonarQubeAnalyze@5
   displayName: 'Run SonarQube analysis'
 
-# Step 6: Publish SonarQube quality gate results
+# Step 7: Publish SonarQube quality gate results
 - task: SonarQubePublish@5
   displayName: 'Publish SonarQube quality gate results'
 
-# Step 7: Validate Quality Gate
+# Optional: Install jq if required
+- script: sudo apt-get install jq -y
+  displayName: 'Install jq'
+
+# Step 8: Validate Quality Gate
 - script: |
-    echo "Validating SonarQube Quality Gate..."
+    echo "Validating Quality Gate..."
     status=$(curl -s -u "${SONAR_TOKEN}:" "${SONARQUBE_URL}/api/qualitygates/project_status?projectKey=FIRST_Angular_0fb77799-5e0c-47b8-bf68-0c6123b7a88e" | jq -r '.projectStatus.status')
     if [ "$status" == "OK" ]; then
       echo "Quality Gate passed. Proceeding..."
@@ -63,14 +83,10 @@ steps:
       echo "Quality Gate failed. Stopping pipeline."
       exit 1
     fi
-  displayName: 'Validate SonarQube Quality Gate Status'
+  displayName: 'Validate Quality Gate'
   env:
-    SONAR_TOKEN: $(SonarToken)  # Add your SonarQube token as a secure variable
-    SONARQUBE_URL: 'http://localhost:8087'  # Replace with your SonarQube instance URL
-
-# Optional: Install jq if not available on the agent
-- script: sudo apt-get install jq -y
-  displayName: 'Install jq'
+    SONAR_TOKEN: $(SonarToken)
+    SONARQUBE_URL: 'http://localhost:8087'
 
 
 # - script: |
