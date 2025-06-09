@@ -40,7 +40,7 @@ steps:
     scannerMode: 'CLI'
     configMode: 'manual'
     cliProjectKey: 'FIRST_Angular_0fb77799-5e0c-47b8-bf68-0c6123b7a88e'
-    cliProjectName: 'Angular'
+    cliProjectName: 'Angular-Front'
     cliProjectVersion: '1.0'
     cliSources: 'src'
   displayName: 'Prepare SonarQube analysis'
