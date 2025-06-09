@@ -53,6 +53,26 @@ steps:
 - task: SonarQubePublish@5
   displayName: 'Publish SonarQube quality gate results'
 
+# Step 7: Validate Quality Gate
+- script: |
+    echo "Validating SonarQube Quality Gate..."
+    status=$(curl -s -u "${SONAR_TOKEN}:" "${SONARQUBE_URL}/api/qualitygates/project_status?projectKey=FIRST_Angular_0fb77799-5e0c-47b8-bf68-0c6123b7a88e" | jq -r '.projectStatus.status')
+    if [ "$status" == "OK" ]; then
+      echo "Quality Gate passed. Proceeding..."
+    else
+      echo "Quality Gate failed. Stopping pipeline."
+      exit 1
+    fi
+  displayName: 'Validate SonarQube Quality Gate Status'
+  env:
+    SONAR_TOKEN: $(SonarToken)  # Add your SonarQube token as a secure variable
+    SONARQUBE_URL: 'http://localhost:8087'  # Replace with your SonarQube instance URL
+
+# Optional: Install jq if not available on the agent
+- script: sudo apt-get install jq -y
+  displayName: 'Install jq'
+
+
 # - script: |
 #     echo "Downloading OWASP ZAP..."
 #     curl -L https://github.com/zaproxy/zaproxy/releases/download/v2.13.0/ZAP_2_13_0_Linux.tar.gz -o zap.tar.gz
